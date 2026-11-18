@@ -87,3 +87,7 @@ $$;
 
 revoke all on function apply_payment(text,text,text,integer) from public, anon, authenticated;
 revoke all on function public_stats() from public, anon, authenticated;
+
+-- Réglages modifiables depuis l'administration (page « Calendrier » : dates d'ouverture et de fermeture).
+create table if not exists settings (key text primary key, value text not null);
+alter table settings enable row level security;

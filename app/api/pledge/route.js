@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/supabase';
-import { SITE, phaseAt } from '@/lib/config';
+import { SITE, getWindow, phaseAt } from '@/lib/config';
 import { MAX_CHILDREN, total } from '@/lib/pricing';
 import { createCheckout } from '@/lib/payment';
 import { audit, clientIp, hashKey, limited, turnstileOk } from '@/lib/security';
@@ -24,11 +24,11 @@ const err = (m, s) => NextResponse.json({ error: m }, { status: s });
 export async function POST(req) {
   const origin = req.headers.get('origin');
   if (!origin || new URL(origin).origin !== new URL(SITE.url).origin) return err('Requête refusée.', 403);
-  if (phaseAt(Date.now()) !== 'open') return err("Les parrainages ne sont pas ouverts actuellement.", 403);
+  if (phaseAt(Date.now(), await getWindow()) !== 'open') return err("Les parrainages ne sont pas ouverts actuellement.", 403);
   let body;
   try { body = Body.parse(await req.json()); } catch { return err('Vérifiez les informations saisies.', 400); }
 
-  const phone = body.phone.replace(/[\s.\-()]/g, '').replace(/^00226/, '+226').replace(/^226/, '+226');
+  const phone = body.phone.replace(/[\s.\-()]/g, '').replace(/^00226/, '+226').replace(/^226/, '+226').replace(/^(\d{8})$/, '+226$1');
   if (!/^\+226\d{8}$/.test(phone)) return err('Numéro invalide. Format : +226 XX XX XX XX', 400);
 
   const ip = clientIp(req.headers);

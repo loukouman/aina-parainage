@@ -20,8 +20,8 @@ export default function Receipt({ reference }) {
       <div className="-mx-4 -mt-8 mb-4 print:hidden"><Garland /></div>
       <p className="mb-4 text-center text-2xl font-extrabold text-brique print:hidden">AÏNA</p>
       {d.status === 'pending' && <div className="card text-center" role="status"><h1 className="text-2xl font-extrabold">Vérification du paiement…</h1><p className="mt-2">Validez le paiement sur votre téléphone. Cette page se met à jour automatiquement.</p><p className="mt-3 text-sm">Référence : {reference}</p></div>}
-      {(d.status === 'failed' || d.status === 'unknown') && <div className="card text-center"><h1 className="text-2xl font-extrabold">Paiement non abouti</h1><p className="mt-2">Aucun montant n&apos;a été comptabilisé pour ce parrainage. Vous pouvez réessayer.</p><a href="/" className="btn mt-5">Retour à l&apos;accueil</a></div>}
-      {r && (
+      {(d.status === 'failed' || d.status === 'unknown') && <div className="card text-center"><h1 className="text-2xl font-extrabold">Paiement non abouti</h1><p className="mt-2">Aucun montant n’a été comptabilisé pour ce parrainage. Vous pouvez réessayer.</p><a href="/" className="btn mt-5">Retour à l’accueil</a></div>}
+      {r && (<>
         <div className="card">
           <h1 className="text-2xl font-extrabold">Merci, parrainage validé !</h1>
           <p className="mt-1">Reçu n° <b>{r.ref}</b> · {new Date(r.paidAt).toLocaleString('fr-FR', { timeZone: 'UTC' })} (GMT)</p>
@@ -41,7 +41,15 @@ export default function Receipt({ reference }) {
             <a className="btn btn-wa" target="_blank" rel="noopener noreferrer" href={`https://wa.me/?text=${encodeURIComponent('J’ai parrainé ' + r.children + ' enfant(s) pour « Ma Fête à Karpala ». Rejoignez-moi : ' + window.location.origin)}`}>Partager sur WhatsApp</a>
           </div>
         </div>
-      )}
+        {d.stats && (
+          <div className="card mt-5 bg-sable text-center print:hidden">
+            <p className="font-extrabold">Vous faites partie des parrains !</p>
+            <div className="text-6xl font-extrabold tabular-nums text-brique">{fmt(d.stats.children)}</div>
+            <p>enfants parrainés à ce jour, grâce à {fmt(d.stats.sponsors)} parrain{d.stats.sponsors > 1 ? 's' : ''}.</p>
+            <a href="/" className="btn mt-4">Retour à l’accueil</a>
+          </div>
+        )}
+      </>)}
     </main>
   );
 }

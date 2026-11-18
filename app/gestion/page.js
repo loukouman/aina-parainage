@@ -29,6 +29,7 @@ export default async function Admin() {
           </div>
           <div className="flex gap-3">
             <a className="btn btn-sun !min-h-[44px] !px-5 !text-base" href={`${base}/export`}>Exporter en Excel (.xlsx)</a>
+            <a className="btn btn-ghost !min-h-[44px] !px-5 !text-base" href={`${base}/calendrier`}>Calendrier</a>
             <form action={logout}><button className="btn btn-ghost !min-h-[44px] !px-5 !text-base">Déconnexion</button></form>
           </div>
         </div>
