@@ -6,7 +6,9 @@ import { db } from '@/lib/supabase';
 import { adminBase, startSession } from '@/lib/auth';
 import { sendMail } from '@/lib/mail';
 import { audit, clientIp, hashKey, limited } from '@/lib/security';
-import PasswordField from '@/components/PasswordField';
+import AuthShell, { Alert, Field, Tabs } from '@/components/AuthShell';
+import { Icon } from '@/components/AuthIcons';
+import { PasswordInput, SubmitButton } from '@/components/AuthClient';
 export const dynamic = 'force-dynamic';
 
 // ADMIN_REQUIRE_CODE=false : connexion avec l'e-mail et le mot de passe seulement.
@@ -18,6 +20,7 @@ const MSG = {
   rate: 'Trop de tentatives. Patientez quelques minutes.',
   mail: "L'envoi de l'e-mail a échoué. Réessayez.",
   code: 'Code incorrect ou expiré.',
+  pending: 'Votre compte est en attente d’approbation par un administrateur. Réessayez après son accord.',
 };
 
 export default function Login({ searchParams }) {
@@ -27,10 +30,12 @@ export default function Login({ searchParams }) {
     const email = String(fd.get('email') || '').trim().toLowerCase().slice(0, 200);
     const pw = String(fd.get('password') || '').slice(0, 200);
     if ((await limited('login:' + hashKey(clientIp(headers())), 5, 10)) || (await limited('loginmail:' + hashKey(email), 10, 30))) redirect(`${b}/login?e=rate`);
-    const { data: u } = await db().from('admin_users').select('email,password_hash').eq('email', email).maybeSingle();
+    const { data: u } = await db().from('admin_users').select('*').eq('email', email).maybeSingle();
     let ok = false;
     try { ok = !!u && (await verify(u.password_hash, pw)); } catch {}
     if (!ok) { await audit(email || '?', 'admin_login_failed'); redirect(`${b}/login?e=1`); }
+    // Compte créé mais pas encore approuvé (la colonne vaut false seulement pour les demandes en attente).
+    if (u.approved === false) { await audit(email, 'admin_login_pending'); redirect(`${b}/login?e=pending`); }
 
     if (!codeRequired()) {
       await startSession(email);
@@ -62,37 +67,50 @@ export default function Login({ searchParams }) {
       await audit(email, 'admin_code_failed');
       redirect(`${b}/login?step=2&m=${encodeURIComponent(email)}&e=code`);
     }
+    const { data: u } = await db().from('admin_users').select('*').eq('email', email).maybeSingle();
+    if (!u || u.approved === false) redirect(`${b}/login?e=pending`);
     await startSession(email);
     await audit(email, 'admin_login');
     redirect(b);
   }
 
   const e = searchParams?.e;
+  const ok = searchParams?.ok;
+  const created = ok === 'created';
+  const pendingMsg = ok === 'pending';
   const step2 = codeRequired() && searchParams?.step === '2' && searchParams?.m;
+  const prefill = created || pendingMsg ? String(searchParams?.m || '').slice(0, 200) : '';
   const testMode = process.env.NODE_ENV !== 'production' && !process.env.RESEND_API_KEY;
   return (
-    <main className="mx-auto max-w-sm px-4 py-12">
+    <AuthShell>
       {!step2 ? (
-        <form action={demander} className="card">
-          <h1 className="text-2xl font-extrabold">Administration AÏNA</h1>
-          {e && <p role="alert" className="mt-3 rounded-xl bg-sable p-3 text-sm font-bold">{MSG[e] || MSG[1]}</p>}
-          <label className="mt-4 block text-sm font-extrabold">E-mail<input className="field" name="email" type="email" required autoComplete="username" /></label>
-          <PasswordField />
-          <button className="btn mt-6 w-full">{codeRequired() ? 'Continuer' : 'Se connecter'}</button>
+        <form action={demander} className="card !p-6">
+          <Tabs active="login" />
+          <h1 className="mt-6 text-2xl font-bold tracking-tight">Connexion</h1>
+          <p className="a-muted mt-1 text-sm">Accédez au tableau de bord de l’équipe AÏNA.</p>
+          {created && <Alert kind="ok">Compte créé avec succès : vous êtes l’administrateur principal. Connectez-vous.</Alert>}
+          {pendingMsg && <Alert kind="info">Demande envoyée. Un administrateur doit approuver votre compte avant votre première connexion.</Alert>}
+          {e && <Alert>{MSG[e] || MSG[1]}</Alert>}
+          <Field label="E-mail" icon="mail" name="email" type="email" required autoComplete="username" defaultValue={prefill} autoFocus={!prefill} />
+          <PasswordInput autoFocus={!!prefill} />
+          <SubmitButton className="btn mt-6 w-full">{codeRequired() ? 'Continuer' : 'Se connecter'}</SubmitButton>
+          <p className="mt-5 text-center text-sm">Pas encore de compte ? <a href={adminBase() + '/inscription'} className="font-bold text-brique underline underline-offset-2">Créer un compte</a></p>
         </form>
       ) : (
-        <form action={verifier} className="card">
-          <h1 className="text-2xl font-extrabold">Code de vérification</h1>
-          <p className="mt-2 text-sm">Un code à 6 chiffres a été envoyé à <b>{searchParams.m}</b>.</p>
-          {testMode && <p className="mt-2 rounded-xl bg-sable p-3 text-sm font-bold">Mode test : le code est affiché dans le terminal de VS Code.</p>}
-          {e && <p role="alert" className="mt-3 rounded-xl bg-sable p-3 text-sm font-bold">{MSG[e] || MSG[1]}</p>}
+        <form action={verifier} className="card !p-6">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sable text-nuit"><Icon name="shield" size={26} /></span>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight">Code de vérification</h1>
+          <p className="a-muted mt-1 text-sm">Un code à 6 chiffres a été envoyé à <b className="text-nuit">{searchParams.m}</b>. Il est valable 10 minutes.</p>
+          {testMode && <Alert kind="info">Mode test : le code est affiché dans le terminal de VS Code.</Alert>}
+          {e && <Alert>{MSG[e] || MSG[1]}</Alert>}
           <input type="hidden" name="email" value={searchParams.m} />
-          <label className="mt-4 block text-sm font-extrabold">Code à 6 chiffres
+          <label className="mt-4 block text-sm font-bold">Code à 6 chiffres
             <input className="field text-center text-2xl tracking-[0.4em]" name="code" inputMode="numeric" maxLength={7} required autoFocus autoComplete="one-time-code" /></label>
-          <button className="btn mt-6 w-full">Se connecter</button>
-          <a href={adminBase() + '/login'} className="mt-4 block text-center text-sm font-bold underline">Recevoir un nouveau code</a>
+          <SubmitButton className="btn mt-6 w-full">Se connecter</SubmitButton>
+          <a href={adminBase() + '/login'} className="mt-4 block text-center text-sm font-bold underline underline-offset-2">Recevoir un nouveau code</a>
         </form>
       )}
-    </main>
+      <a href="/" className="mt-5 block text-center text-sm font-semibold text-nuit/70 hover:underline">← Retour au site</a>
+    </AuthShell>
   );
 }

@@ -13,7 +13,7 @@ const Body = z.object({
   contact: z.string().trim().max(120).optional().default(''),
   phone: z.string().max(30),
   children: z.number().int().min(1).max(MAX_CHILDREN),
-  method: z.enum(['orange', 'moov', 'wave']),
+  method: z.enum(['orange', 'moov']),
   anonymous: z.boolean().default(false),
   turnstile: z.string().max(2048).optional(),
 });

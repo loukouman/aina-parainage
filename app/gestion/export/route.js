@@ -14,7 +14,7 @@ export async function GET() {
   const s1 = wb.addWorksheet('Souscriptions validées');
   s1.columns = [
     ['N° / Réf. Transaction', 34], ['Date & Heure (GMT)', 20], ['Type de Parrain', 16], ['Nom / Raison Sociale', 30], ['Numéro de Téléphone', 18],
-    ["Nombre d'Enfants", 14], ['Montant Total Payé (FCFA)', 18], ['Part Restauration (2 500)', 18], ['Part Tee-shirt (1 500)', 18], ['Part Jouet (3 500)', 18], ['Moyen de Paiement', 16],
+    ["Nombre d'Enfants", 14], ['Montant Total Payé (FCFA)', 18], ['Part Restauration (2 500)', 18], ['Part Tee-shirt (1 500)', 18], ['Part Jouet (3 500)', 18], ['Moyen de Paiement', 16], ['Contrôle', 14], ['Contrôle', 14],
   ].map(([header, width], i) => ({ header, width, key: 'c' + i }));
   s1.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   s1.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF17304F' } };
@@ -29,7 +29,7 @@ export async function GET() {
       c7: { formula: `F${r}*${part('resto')}`, result: p.children * part('resto') },
       c8: { formula: `F${r}*${part('tshirt')}`, result: p.children * part('tshirt') },
       c9: { formula: `F${r}*${part('jouet')}`, result: p.children * part('jouet') },
-      c10: METHODS.find((m) => m.key === p.method)?.label,
+      c10: METHODS.find((m) => m.key === p.method)?.label, c11: p.verified ? 'Vérifié' : 'Non vérifié', c11: p.verified ? 'Vérifié' : 'Non vérifié',
     });
   });
   s1.getColumn('c1').numFmt = 'dd/mm/yyyy hh:mm:ss';

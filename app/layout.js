@@ -1,5 +1,6 @@
 import './globals.css';
 import '@fontsource-variable/nunito';
+import '@fontsource/cormorant-garamond/700.css';
 import { SITE } from '@/lib/config';
 import PwaRegister from '@/components/PwaRegister';
 

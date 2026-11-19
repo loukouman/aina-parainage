@@ -36,8 +36,7 @@ export default async function Calendrier({ searchParams }) {
   const e = searchParams?.e;
   return (
     <main className="mx-auto max-w-xl px-4 py-8">
-      <a href={base} className="text-sm font-bold underline">← Retour au tableau de bord</a>
-      <h1 className="mt-3 text-3xl font-extrabold">Calendrier de la campagne</h1>
+      <h1 className="text-3xl font-extrabold">Calendrier de la campagne</h1>
       <p className="mt-2">Situation actuelle : <b>{LABEL[phaseAt(Date.now(), w)]}</b></p>
       <form action={save} className="card mt-5">
         {searchParams?.ok && <p role="status" className="mb-4 rounded-xl bg-sable p-3 text-sm font-bold">Dates enregistrées. Le site les applique immédiatement.</p>}
@@ -47,7 +46,10 @@ export default async function Calendrier({ searchParams }) {
         <label className="mt-4 block text-sm font-extrabold">Fermeture (dernière seconde où l’on peut parrainer)
           <input className="field" type="datetime-local" step="1" name="close" required defaultValue={iso(w.close - 1000)} /></label>
         <p className="mt-3 text-sm">Heures du Burkina Faso (GMT). Avant l’ouverture, le site affiche le compte à rebours ; après la fermeture, il affiche le bilan.</p>
-        <button className="btn mt-5 w-full">Enregistrer les dates</button>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <a href={base} className="btn btn-ghost !px-3 !text-[15px] sm:flex-1">← Retour au tableau de bord</a>
+          <button className="btn !px-3 !text-[15px] sm:flex-1">Enregistrer les dates</button>
+        </div>
       </form>
     </main>
   );

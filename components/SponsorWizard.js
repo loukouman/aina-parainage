@@ -32,11 +32,13 @@ export default function SponsorWizard({ turnstileKey }) {
   const [errs, setErrs] = useState({});
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const head = useRef(null);
   const n = Math.min(MAX_CHILDREN, Math.max(1, parseInt(count, 10) || 1));
   const ent = f.type === 'entreprise';
   const total = n * PRICE.unit;
   const method = METHODS.find((m) => m.key === f.method);
+  const code = method ? method.ussd(total) : '';
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   useEffect(() => { head.current?.focus(); }, [step]);
 
@@ -62,6 +64,7 @@ export default function SponsorWizard({ turnstileKey }) {
     if (!f.method) x.method = 'Choisissez votre moyen de paiement.';
     setErrs(x); if (!Object.keys(x).length) { setCount(String(n)); setStep(3); }
   }
+  async function copy() { try { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch {} }
   async function pay(e) {
     e.preventDefault(); setErr('');
     if (turnstileKey && !token) { setErr('Cochez d’abord la vérification anti-robot.'); return; }
@@ -89,7 +92,7 @@ export default function SponsorWizard({ turnstileKey }) {
       {fieldErr(errs.name)}
       {ent && <label className="mt-4 block text-sm font-extrabold">Nom du contact référent (facultatif)
         <input className="field" maxLength={120} value={f.contact} onChange={set('contact')} /></label>}
-      <label className="mt-4 block text-sm font-extrabold">Téléphone (Mobile Money)
+      <label className="mt-4 block text-sm font-extrabold">Téléphone (celui qui effectuera le paiement)
         <input className="field" type="tel" inputMode="tel" autoComplete="tel" placeholder="+226 XX XX XX XX" value={f.phone} onChange={set('phone')} /></label>
       {fieldErr(errs.phone)}
       <button className="btn mt-6 w-full">Continuer</button>
@@ -111,13 +114,20 @@ export default function SponsorWizard({ turnstileKey }) {
         </div>
       </fieldset>
       <fieldset className="mt-5"><legend className="text-sm font-extrabold">Moyen de paiement</legend>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {METHODS.map((m) => (
-            <label key={m.key} className="block cursor-pointer">
-              <input className="peer sr-only" type="radio" name="method" checked={f.method === m.key} onChange={() => setF({ ...f, method: m.key })} />
-              <span className="flex min-h-[56px] items-center justify-center rounded-2xl border-2 border-[#E4D5C3] px-1 text-center text-sm font-extrabold peer-checked:border-nuit peer-checked:bg-nuit peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-soleil">{m.label}</span>
-            </label>
-          ))}
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          {METHODS.map((m) => {
+            const on = f.method === m.key;
+            return (
+              <label key={m.key} className="block cursor-pointer">
+                <input className="peer sr-only" type="radio" name="method" checked={on} onChange={() => setF({ ...f, method: m.key })} />
+                <span className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl border-[3px] px-2 text-center text-base font-extrabold shadow-sm transition peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-nuit"
+                  style={on ? { background: m.color, borderColor: m.color, color: m.text } : { background: '#fff', borderColor: m.color, color: '#1B2A24' }}>
+                  <span className="h-3.5 w-3.5 rounded-full border-2" style={{ background: on ? m.text : m.color, borderColor: on ? m.text : m.color }} aria-hidden="true" />
+                  {m.label}
+                </span>
+              </label>
+            );
+          })}
         </div>
         {fieldErr(errs.method)}
       </fieldset>
@@ -130,27 +140,43 @@ export default function SponsorWizard({ turnstileKey }) {
 
   return (
     <form onSubmit={pay}>
-      {header('Étape 3 sur 3 · Vérification et paiement', 'Dernière étape : confirmez')}
+      {header('Étape 3 sur 3 · Paiement et confirmation', 'Dernière étape : payez')}
       <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-2xl bg-creme p-4 text-sm">
         <dt className="font-bold">Parrain</dt><dd>{f.name}</dd>
         <dt className="font-bold">Téléphone</dt><dd>{pretty(f.phone)}</dd>
         <dt className="font-bold">Enfants</dt><dd>{n}</dd>
-        <dt className="font-bold">Paiement</dt><dd>{method?.label}</dd>
-        <dt className="font-bold">Total</dt><dd className="font-extrabold">{fmt(total)} FCFA</dd>
+        <dt className="font-bold">Total à payer</dt><dd className="font-extrabold">{fmt(total)} FCFA</dd>
       </dl>
       <button type="button" className="mt-2 text-sm font-bold underline" onClick={() => setStep(1)}>Modifier mes informations</button>
+
+      <div className="mt-4 overflow-hidden rounded-2xl border-[3px]" style={{ borderColor: method.color }}>
+        <p className="px-4 py-2 text-sm font-extrabold" style={{ background: method.color, color: method.text }}>Payer avec {method.label}</p>
+        <div className="p-4">
+          <p className="text-sm font-bold">Composez ce code sur votre téléphone :</p>
+          <p className="mt-2 break-all rounded-xl bg-creme p-3 text-center font-mono text-xl font-bold tracking-wide" data-testid="ussd">{code}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <a className="btn btn-ghost" href={`tel:${encodeURIComponent(code)}`}>Composer</a>
+            <button type="button" className="btn btn-ghost" onClick={copy}>{copied ? 'Code copié' : 'Copier le code'}</button>
+          </div>
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">
+            <li>Composez ce code (ou collez-le dans l’application Téléphone).</li>
+            <li>Confirmez avec votre code secret {method.label}.</li>
+            <li>Revenez ici et appuyez sur « J’ai effectué le paiement ».</li>
+          </ol>
+        </div>
+      </div>
 
       <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm font-bold">
         <input type="checkbox" className="mt-0.5 h-5 w-5 accent-brique" checked={f.anonymous} onChange={(e) => setF({ ...f, anonymous: e.target.checked })} />
         <span>Rester anonyme sur la liste publique des parrains <span className="block font-medium text-nuit/70">Votre identité reste enregistrée pour l’organisation.</span></span>
       </label>
-      <p className="mt-4 rounded-2xl bg-sable p-3 text-sm font-bold">Votre parrainage n’est validé qu’après confirmation du paiement par l’opérateur.</p>
+      <p className="mt-4 rounded-2xl bg-sable p-3 text-sm font-bold">Votre parrainage est enregistré dès que vous appuyez sur « J’ai effectué le paiement ». L’organisation contrôle ensuite les paiements reçus.</p>
 
       <Turnstile siteKey={turnstileKey} onToken={setToken} />
       {err && <p role="alert" className="mt-4 rounded-xl bg-sable p-3 text-sm font-bold">{err}</p>}
       <div className="mt-5 grid grid-cols-[auto_1fr] gap-3">
         <button type="button" className="btn btn-ghost !px-5" onClick={() => setStep(2)}>Retour</button>
-        <button className="btn" disabled={busy}>{busy ? 'Redirection…' : `Payer ${fmt(total)} FCFA`}</button>
+        <button className="btn" disabled={busy}>{busy ? 'Enregistrement…' : 'J’ai effectué le paiement'}</button>
       </div>
     </form>
   );

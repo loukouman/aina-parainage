@@ -1,8 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Modal from './Modal';
 import Garland from './Garland';
 import Sapin from './Sapin';
+import AinaLogo from './AinaLogo';
 import Panneau from './Panneau';
 import SponsorWizard from './SponsorWizard';
 import { SLIDES } from '@/lib/panneau';
@@ -41,6 +43,22 @@ export default function Landing({ initial, canSee, serverNow, open, close, turns
     load(); const t = setInterval(load, 8000); return () => clearInterval(t);
   }, [visible]);
   useEffect(() => { if (phase !== 'open' && modal === 'parrain') setModal(null); }, [phase, modal]);
+  // Si les dates du calendrier changent, la page se met à jour toute seule (sans recharger ni fermer le formulaire).
+  const router = useRouter();
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const r = await fetch('/api/window', { cache: 'no-store' });
+        if (!r.ok) return;
+        const w = await r.json();
+        if (w.open !== open || w.close !== close) router.refresh();
+      } catch {}
+    };
+    const t = setInterval(check, 8000);
+    document.addEventListener('visibilitychange', check);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', check); };
+  }, [open, close, router]);
   const s = stats || { children: 0, sponsors: 0, recent: [] };
   const openLabel = (() => {
     const d = new Date(open), p = (n) => String(n).padStart(2, '0');
@@ -50,6 +68,7 @@ export default function Landing({ initial, canSee, serverNow, open, close, turns
 
   const url = typeof window !== 'undefined' ? window.location.origin : '';
   const text = 'Parrainez un enfant pour « Ma Fête à Karpala » : un jouet, un repas chaud et un tee-shirt pour 7 500 FCFA.';
+  const cta = phase === 'open' && <button className="btn btn-sun" onClick={() => setModal('parrain')}>{canSee ? 'Parrainer un autre enfant' : 'Parrainer un enfant'}</button>;
   const closing = (
     <div className="mt-4 rounded-2xl bg-nuit p-3 text-white">
       <p className="mb-2 text-center text-xs font-bold uppercase tracking-wide text-sable">Clôture dans</p>
@@ -59,54 +78,66 @@ export default function Landing({ initial, canSee, serverNow, open, close, turns
 
   return (
     <main>
-      <header className="relative overflow-hidden rounded-b-[28px] bg-gradient-to-b from-[#613422] to-[#3b2214] text-creme md:rounded-b-[44px]">
-        <img src="/decor/fond-noel.webp" alt="AÏNA, la plateforme communautaire. Joyeux Noël et meilleurs vœux !" width="1376" height="768"
-          className="aspect-[17/20] w-full object-cover [object-position:38%_center] [-webkit-mask-image:linear-gradient(to_bottom,#000_82%,transparent)] [mask-image:linear-gradient(to_bottom,#000_82%,transparent)] md:aspect-[16/9] md:[object-position:center] lg:aspect-[21/9]" />
-        <div className="relative z-10 mx-auto -mt-6 flex max-w-3xl flex-col items-center px-5 pb-12 text-center md:-mt-10 md:pb-16">
-          <p className="text-sm font-bold text-sable">Ma Fête à Karpala · 2ᵉ édition</p>
-
-          {phase === 'waiting' && (<>
-            <p className="mt-8 font-extrabold text-soleil">Ouverture officielle des parrainages</p>
-            <h1 className="mt-2 text-[30px] font-extrabold leading-[1.1] md:text-5xl">Bientôt, parrainez un enfant pour Noël.</h1>
-          </>)}
-          {phase === 'open' && <h1 className="mt-8 text-[30px] font-extrabold leading-[1.1] md:text-5xl">Parrainez un enfant, offrez-lui un vrai Noël.</h1>}
-          {phase === 'closed' && <h1 className="mt-8 text-[30px] font-extrabold leading-[1.1] md:text-5xl">Merci ! Les parrainages sont clos.</h1>}
-          <p className="mt-4 max-w-xl text-lg leading-relaxed text-sable">
-            {phase === 'closed'
-              ? 'Grâce à vous, des enfants de Karpala vivront une fête inoubliable du 22 au 27 décembre. Merci de tout cœur à chaque parrain.'
-              : 'Pour 7 500 FCFA, un enfant orphelin ou défavorisé de Ouaga reçoit un jouet, un repas chaud avec boisson et un tee-shirt pendant le festival.'}
-          </p>
-          <div className="mt-6 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
-            {phase === 'open' && <button className="btn btn-sun w-full sm:w-auto" onClick={() => setModal('parrain')}>{canSee ? 'Parrainer un autre enfant' : 'Parrainer un enfant'}</button>}
-            <button className="btn btn-ghost w-full sm:w-auto" onClick={() => setModal('partage')}>Partager l’opération</button>
+      <header className="relative overflow-hidden rounded-b-[28px] bg-gradient-to-b from-sable to-creme pb-16 text-nuit md:rounded-b-[40px] lg:pb-14">
+        <Garland className="relative z-10 mb-2" />
+        <div className="mx-auto flex max-w-[1500px] items-center justify-center">
+          <Sapin className="hidden w-32 shrink-0 lg:block xl:w-44" />
+          <div className="min-w-0 flex-1">
+        <div className="mx-auto max-w-[1100px] px-5">
+          <div className="relative flex flex-col items-center text-center">
+            <AinaLogo className="text-[88px] sm:text-[120px] lg:text-[148px]" />
+            <div className="mt-1 text-sm font-bold text-nuit/70 sm:text-base">Ma Fête à Karpala · 2ᵉ édition</div>
+            {cta && <span className="absolute right-0 top-0 hidden sm:block">{cta}</span>}
           </div>
-
-          <div className="card mt-8 w-full max-w-lg text-center text-nuit">
-            {phase === 'waiting' && (<>
-              <p className="mb-3 font-extrabold">Ouverture le {openLabel}</p>
-              <div className="rounded-2xl bg-nuit p-3 text-white"><Count ms={open - now} /></div>
-            </>)}
-            {phase === 'open' && !visible && (<>
-              <p className="font-extrabold">Le pack d’un enfant</p>
-              <p className="mt-1 text-4xl font-extrabold text-brique">{fmt(PRICE.unit)} <span className="text-lg">FCFA</span></p>
-              <p className="mt-1">1 jouet · 1 repas chaud avec boisson · 1 tee-shirt</p>
-              {closing}
-              
-            </>)}
-            {phase === 'open' && visible && (<>
-              <p className="rounded-full bg-sable px-3 py-1 text-sm font-extrabold">Merci, vous êtes parrain !</p>
-              <p className="mt-3 font-extrabold">Enfants parrainés à ce jour</p>
-              <div className="text-6xl font-extrabold tabular-nums text-brique" aria-live="polite">{fmt(s.children)}</div>
-              <p className="mt-1">grâce à {fmt(s.sponsors)} parrain{s.sponsors > 1 ? 's' : ''}</p>
-              {closing}
-            </>)}
-            {phase === 'closed' && (<>
-              <p className="font-extrabold">Bilan définitif</p>
-              <div className="text-6xl font-extrabold tabular-nums text-brique">{fmt(s.children)}</div>
-              <p className="mt-1">enfants parrainés · {fmt(s.sponsors)} parrain{s.sponsors > 1 ? 's' : ''}</p>
-            </>)}
+          <div className="mt-9 grid items-center gap-8 md:mt-12 md:grid-cols-[1.2fr_1fr] md:gap-10">
+            <div>
+              {phase === 'waiting' && (<>
+                <p className="font-extrabold text-brique">Ouverture officielle des parrainages</p>
+                <h1 className="mt-2 text-[34px] font-extrabold leading-[1.1] md:text-5xl">Bientôt, parrainez un enfant pour Noël.</h1>
+              </>)}
+              {phase === 'open' && <h1 className="text-[34px] font-extrabold leading-[1.1] md:text-5xl lg:text-[52px]">Parrainez un enfant, offrez-lui un vrai Noël.</h1>}
+              {phase === 'closed' && <h1 className="text-[34px] font-extrabold leading-[1.1] md:text-5xl">Merci ! Les parrainages sont clos.</h1>}
+              <p className="mt-4 max-w-xl text-lg leading-relaxed text-nuit/80">
+                {phase === 'closed'
+                  ? 'Grâce à vous, des enfants de Karpala vivront une fête inoubliable du 22 au 27 décembre. Merci de tout cœur à chaque parrain.'
+                  : 'Pour 7 500 FCFA, un enfant orphelin ou défavorisé de Ouaga reçoit un jouet, un repas chaud avec boisson et un tee-shirt pendant le festival.'}
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <span className="sm:hidden">{cta && <span className="block [&>button]:w-full">{cta}</span>}</span>
+                <button className="btn btn-ghost" onClick={() => setModal('partage')}>Partager l&apos;opération</button>
+              </div>
+            </div>
+            <div className="card text-nuit">
+              {phase === 'waiting' && (<>
+                <p className="mb-3 font-extrabold">Ouverture le {openLabel}</p>
+                <div className="rounded-2xl bg-nuit p-3 text-white"><Count ms={open - now} /></div>
+              </>)}
+              {phase === 'open' && !visible && (<>
+                <p className="font-extrabold">Le pack d’un enfant</p>
+                <p className="mt-1 text-4xl font-extrabold text-brique">{fmt(PRICE.unit)} <span className="text-lg">FCFA</span></p>
+                <p className="mt-1">1 jouet · 1 repas chaud avec boisson · 1 tee-shirt</p>
+                {closing}
+              </>)}
+              {phase === 'open' && visible && (<>
+                <p className="inline-block rounded-full bg-sable px-3 py-1 text-sm font-extrabold">Merci, vous êtes parrain !</p>
+                <p className="mt-3 font-extrabold">Enfants parrainés à ce jour</p>
+                <div className="text-6xl font-extrabold tabular-nums text-brique" aria-live="polite">{fmt(s.children)}</div>
+                <p className="mt-1">grâce à {fmt(s.sponsors)} parrain{s.sponsors > 1 ? 's' : ''}</p>
+                {closing}
+              </>)}
+              {phase === 'closed' && (<>
+                <p className="font-extrabold">Bilan définitif</p>
+                <div className="text-6xl font-extrabold tabular-nums text-brique">{fmt(s.children)}</div>
+                <p className="mt-1">enfants parrainés · {fmt(s.sponsors)} parrain{s.sponsors > 1 ? 's' : ''}</p>
+              </>)}
+            </div>
           </div>
         </div>
+      </div>
+          <Sapin swap className="hidden w-32 shrink-0 lg:block xl:w-44" />
+        </div>
+        <Sapin className="absolute bottom-0 left-2 w-12 lg:hidden" />
+        <Sapin swap className="absolute bottom-0 right-2 w-12 lg:hidden" />
       </header>
 
       <Panneau slides={SLIDES} />
@@ -118,7 +149,7 @@ export default function Landing({ initial, canSee, serverNow, open, close, turns
         <p className="mt-3 text-lg leading-relaxed">Grâce à AÏNA, soutenir un enfant orphelin ou défavorisé n’a jamais été aussi simple et immédiat. En quelques clics depuis votre téléphone ou votre ordinateur, transformez votre monnaie digitale en un véritable élan de générosité : chaque contribution mobile est directement convertie en kits cadeaux et en moments festifs.</p>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="card border-l-8 border-soleil"><h3 className="text-xl font-extrabold">Votre geste prend vie en direct</h3><p className="mt-1.5 leading-relaxed">Tous les cadeaux financés via la plateforme seront officiellement remis aux enfants orphelins le <b>mardi 22 décembre 2026</b>, lors de la cérémonie d’ouverture de la fête !</p></div>
-          <div className="card border-l-8 border-brique"><h3 className="text-xl font-extrabold">100 % digital, rapide et transparent</h3><p className="mt-1.5 leading-relaxed">Payez par Orange Money, Moov Money ou Wave, depuis votre téléphone.</p></div>
+          <div className="card border-l-8 border-brique"><h3 className="text-xl font-extrabold">100 % digital, rapide et transparent</h3><p className="mt-1.5 leading-relaxed">Payez par Orange Money ou Moov Money, depuis votre téléphone.</p></div>
         </div>
       </section>
 
@@ -141,7 +172,7 @@ export default function Landing({ initial, canSee, serverNow, open, close, turns
         <div className="mx-auto max-w-[1100px] px-5">
           <h2 className="mb-6 text-[26px] font-extrabold md:text-[32px]">Comment ça marche</h2>
           <ol className="grid gap-5 md:grid-cols-3">
-            {[['Vos informations', 'Particulier ou entreprise : votre nom et votre numéro Mobile Money.'], ['Votre parrainage', 'Choisissez le nombre d’enfants et votre moyen de paiement : Orange Money, Moov Money ou Wave.'], ['Confirmation', 'Vérifiez vos informations, payez, puis recevez votre reçu.']].map(([t, d], i) => (
+            {[['Vos informations', 'Particulier ou entreprise : votre nom et votre numéro Mobile Money.'], ['Votre parrainage', 'Choisissez le nombre d’enfants et votre moyen de paiement : Orange Money ou Moov Money.'], ['Confirmation', 'Vérifiez vos informations, payez, puis recevez votre reçu.']].map(([t, d], i) => (
               <li key={t} className="card"><div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-soleil font-extrabold">{i + 1}</div><h3 className="text-xl font-extrabold">{t}</h3><p className="mt-1.5 leading-relaxed">{d}</p></li>
             ))}
           </ol>
